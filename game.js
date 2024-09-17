@@ -13,8 +13,8 @@ let lastSpecialShotTime = 0;
 let score = 0;
 let mouseX = 0;
 let mouseY = 0;
-const shootCooldown = 2500; // 2.5 seconds in milliseconds
-const specialShootCooldown = 120000; // 120 seconds in milliseconds
+const shootCooldown = 0o500; // 0.5 seconds in milliseconds
+const specialShootCooldown = 60000; // 60 seconds in milliseconds
 
 class Player {
     constructor(x, y, radius) {
