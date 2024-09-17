@@ -13,10 +13,14 @@ let lastSpecialShotTime = 0;
 let score = 0;
 let mouseX = 0;
 let mouseY = 0;
-const shootCooldown = 500; // 0.5 seconds in milliseconds
-const specialShootCooldown = 60000; // 60 seconds in milliseconds
+const shootCooldown = 500;
+const specialShootCooldown = 60000;
 
-// Make canvas full-screen
+// Camera and world size
+let camera = { x: 0, y: 0 };
+const worldWidth = 5000;
+const worldHeight = 5000;
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -30,20 +34,28 @@ class Player {
         this.x = x;
         this.y = y;
         this.radius = radius;
-        this.speed = 7; // Increased speed for larger map
+        this.speed = 7;
     }
 
     draw() {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'blue';
         ctx.fill();
         ctx.closePath();
     }
 
     move(dx, dy) {
-        this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x + dx * this.speed));
-        this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y + dy * this.speed));
+        this.x = Math.max(this.radius, Math.min(worldWidth - this.radius, this.x + dx * this.speed));
+        this.y = Math.max(this.radius, Math.min(worldHeight - this.radius, this.y + dy * this.speed));
+        this.updateCamera();
+    }
+
+    updateCamera() {
+        camera.x = this.x - canvas.width / 2;
+        camera.y = this.y - canvas.height / 2;
+        camera.x = Math.max(0, Math.min(worldWidth - canvas.width, camera.x));
+        camera.y = Math.max(0, Math.min(worldHeight - canvas.height, camera.y));
     }
 }
 
@@ -57,7 +69,7 @@ class Circle {
 
     draw() {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'red';
         ctx.fill();
         ctx.closePath();
@@ -74,8 +86,8 @@ class Circle {
 
 class Bullet {
     constructor(x, y, targetX, targetY) {
-        this.x = x;
-        this.y = y;
+        this.x = x + camera.x;
+        this.y = y + camera.y;
         this.radius = 5;
         this.speed = 10;
         const dx = targetX - x;
@@ -87,7 +99,7 @@ class Bullet {
 
     draw() {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'yellow';
         ctx.fill();
         ctx.closePath();
@@ -99,7 +111,7 @@ class Bullet {
     }
 
     isOutOfBounds() {
-        return this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height;
+        return this.x < 0 || this.x > worldWidth || this.y < 0 || this.y > worldHeight;
     }
 }
 
@@ -114,7 +126,7 @@ class Pulse {
 
     draw() {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
         ctx.strokeStyle = 'purple';
         ctx.lineWidth = 3;
         ctx.stroke();
@@ -135,14 +147,14 @@ function init() {
     gameButton.style.display = 'none';
     gameOver = false;
     gameRunning = true;
-    player = new Player(canvas.width / 2, canvas.height / 2, 20);
+    player = new Player(worldWidth / 2, worldHeight / 2, 20);
     circles = [];
     bullets = [];
     pulses = [];
     score = 0;
     lastShotTime = 0;
     lastSpecialShotTime = 0;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 20; i++) {
         spawnCircle();
     }
     gameLoop();
@@ -151,16 +163,21 @@ function init() {
 function spawnCircle() {
     const radius = 10;
     let x, y;
-    const minDistance = Math.min(canvas.width, canvas.height) / 2; // Enemies spawn at least half the screen away
+    const minDistance = 500; // Minimum spawn distance from player
     do {
-        x = Math.random() * canvas.width;
-        y = Math.random() * canvas.height;
+        x = Math.random() * worldWidth;
+        y = Math.random() * worldHeight;
     } while (Math.sqrt((x - player.x) ** 2 + (y - player.y) ** 2) < minDistance);
     circles.push(new Circle(x, y, radius, 2));
 }
 
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw world boundaries
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(-camera.x, -camera.y, worldWidth, worldHeight);
+
     player.draw();
 
     circles.forEach((circle, index) => {
@@ -210,7 +227,7 @@ function update() {
         return !pulse.isFinished();
     });
 
-    if (Math.random() < 0.01) { // Reduced spawn rate for balance
+    if (Math.random() < 0.02) {
         spawnCircle();
     }
 
@@ -222,6 +239,7 @@ function update() {
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 10, 100);
 }
+
 
 function drawCooldownIndicator(x, y, cooldown, lastTime, color) {
     const currentTime = Date.now();
@@ -260,7 +278,9 @@ function showGameOver() {
 function shoot(x, y) {
     const currentTime = Date.now();
     if (currentTime - lastShotTime >= shootCooldown) {
-        bullets.push(new Bullet(player.x, player.y, x, y));
+        const bulletX = player.x - camera.x;
+        const bulletY = player.y - camera.y;
+        bullets.push(new Bullet(bulletX, bulletY, x, y));
         lastShotTime = currentTime;
     }
 }
@@ -274,8 +294,8 @@ function specialShoot() {
 }
 
 canvas.addEventListener('mousemove', (e) => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
+    mouseX = e.clientX + camera.x;
+    mouseY = e.clientY + camera.y;
 });
 
 canvas.addEventListener('click', (e) => {
