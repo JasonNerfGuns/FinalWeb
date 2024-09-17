@@ -13,15 +13,24 @@ let lastSpecialShotTime = 0;
 let score = 0;
 let mouseX = 0;
 let mouseY = 0;
-const shootCooldown = 0o500; // 0.5 seconds in milliseconds
+const shootCooldown = 500; // 0.5 seconds in milliseconds
 const specialShootCooldown = 60000; // 60 seconds in milliseconds
+
+// Make canvas full-screen
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 class Player {
     constructor(x, y, radius) {
         this.x = x;
         this.y = y;
         this.radius = radius;
-        this.speed = 5;
+        this.speed = 7; // Increased speed for larger map
     }
 
     draw() {
@@ -142,10 +151,11 @@ function init() {
 function spawnCircle() {
     const radius = 10;
     let x, y;
+    const minDistance = Math.min(canvas.width, canvas.height) / 2; // Enemies spawn at least half the screen away
     do {
         x = Math.random() * canvas.width;
         y = Math.random() * canvas.height;
-    } while (Math.sqrt((x - player.x) ** 2 + (y - player.y) ** 2) < 100);
+    } while (Math.sqrt((x - player.x) ** 2 + (y - player.y) ** 2) < minDistance);
     circles.push(new Circle(x, y, radius, 2));
 }
 
@@ -200,7 +210,7 @@ function update() {
         return !pulse.isFinished();
     });
 
-    if (Math.random() < 0.02) {
+    if (Math.random() < 0.01) { // Reduced spawn rate for balance
         spawnCircle();
     }
 
@@ -237,13 +247,13 @@ function drawCooldownIndicator(x, y, cooldown, lastTime, color) {
 function showGameOver() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = '48px Arial';
+    ctx.font = '72px Arial'; // Increased font size
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
-    ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 100);
-    ctx.font = '36px Arial';
-    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 - 20);
-    ctx.font = '24px Arial';
+    ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 150);
+    ctx.font = '48px Arial'; // Increased font size
+    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 - 50);
+    ctx.font = '36px Arial'; // Increased font size
     ctx.fillText('Click to Restart', canvas.width / 2, canvas.height / 2 + 50);
 }
 
@@ -264,19 +274,15 @@ function specialShoot() {
 }
 
 canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
 });
 
 canvas.addEventListener('click', (e) => {
     if (gameOver) {
         init();
     } else if (gameRunning) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        shoot(x, y);
+        shoot(e.clientX, e.clientY);
     }
 });
 
